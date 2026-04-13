@@ -210,10 +210,46 @@
   background: #f9fafb;
 }
 
+/* Brand header row */
+.trBrand td {
+  background: #eef1ff;
+  border-top: 1px solid #c7d2fe;
+  border-bottom: 1px solid #c7d2fe;
+}
+
+.trBrand:first-child td {
+  border-top: none;
+}
+
+/* Recipient row under a brand */
+.trRecipient td {
+  background: #ffffff;
+}
+
+.trRecipient:hover td {
+  background: #f5f7ff;
+}
+
+.trRecipient:not(:last-child) td {
+  border-bottom: 1px solid #f3f4f6;
+}
+
 .td {
   padding: 10px 14px;
   color: #1a1a1a;
   vertical-align: top;
+}
+
+/* Brand name cell */
+.tdBrand {
+  font-weight: 600;
+  color: #3730a3;
+}
+
+/* Recipient cell — indent to show hierarchy */
+.tdRecipient {
+  padding-left: 28px;
+  color: #374151;
 }
 
 .tdQty {
@@ -221,4 +257,9 @@
   color: #374151;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+.tdBrandQty {
+  font-weight: 600;
+  color: #3730a3;
 }

@@ -5,9 +5,15 @@ export interface SavedAddress {
   address: string;
 }
 
-export interface DocumentRow {
+export interface RecipientRow {
   recipient: string;
   quantity: number;
+}
+
+export interface FilteredBrand {
+  brand: string;
+  quantity: number;
+  recipients: RecipientRow[];
 }
 
 const api = axios.create({
@@ -29,5 +35,5 @@ export const getAddresses = () =>
 export const uploadDocument = (file: File) => {
   const form = new FormData();
   form.append("file", file);
-  return api.post<{ rows: DocumentRow[] }>("/document", form);
+  return api.post<{ brands: FilteredBrand[] }>("/document", form);
 };

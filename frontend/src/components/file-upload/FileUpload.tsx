@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 
-import { uploadDocument, DocumentRow } from "../../api/addresses";
+import { uploadDocument, FilteredBrand } from "../../api/addresses";
 
 import styles from "./FileUpload.module.css";
 
@@ -14,17 +14,17 @@ const isValidFile = (file: File): boolean =>
   ACCEPTED_MIME.includes(file.type) ||
   ACCEPTED_EXTENSIONS.some((ext) => file.name.toLowerCase().endsWith(ext));
 
-const pluralRows = (n: number): string => {
-  if (n % 10 === 1 && n % 100 !== 11) return "запис";
-  if (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20)) return "записи";
-  return "записів";
+const pluralUk = (n: number, one: string, few: string, many: string): string => {
+  if (n % 10 === 1 && n % 100 !== 11) return `${n} ${one}`;
+  if (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20)) return `${n} ${few}`;
+  return `${n} ${many}`;
 };
 
 export const FileUpload = (): JSX.Element => {
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [rows, setRows] = useState<DocumentRow[] | null>(null);
+  const [brands, setBrands] = useState<FilteredBrand[] | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -36,10 +36,10 @@ export const FileUpload = (): JSX.Element => {
     setFileName(file.name);
     setUploading(true);
     setError(null);
-    setRows(null);
+    setBrands(null);
     try {
       const res = await uploadDocument(file);
-      setRows(res.data.rows);
+      setBrands(res.data.brands);
     } catch {
       setError("Не вдалося обробити файл. Спробуйте ще раз.");
     } finally {
@@ -74,10 +74,12 @@ export const FileUpload = (): JSX.Element => {
   };
 
   const handleReset = (): void => {
-    setRows(null);
+    setBrands(null);
     setFileName(null);
     setError(null);
   };
+
+  const totalRecipients = brands?.reduce((sum, b) => sum + b.recipients.length, 0) ?? 0;
 
   return (
     <div className={styles.wrapper}>
@@ -134,9 +136,7 @@ export const FileUpload = (): JSX.Element => {
                 d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z"
               />
             </svg>
-            <p className={styles.dropzoneText}>
-              Перетягніть XLS/XLSX файл сюди
-            </p>
+            <p className={styles.dropzoneText}>Перетягніть XLS/XLSX файл сюди</p>
             <p className={styles.dropzoneHint}>
               або <span className={styles.browse}>натисніть для вибору</span>
             </p>
@@ -146,40 +146,52 @@ export const FileUpload = (): JSX.Element => {
 
       {error && <p className={styles.error}>{error}</p>}
 
-      {rows !== null && (
+      {brands !== null && (
         <div className={styles.results}>
           <div className={styles.resultsHeader}>
             <span className={styles.resultsCount}>
-              {rows.length} {pluralRows(rows.length)}
+              {pluralUk(brands.length, "бренд", "бренди", "брендів")}
+              {" · "}
+              {pluralUk(totalRecipients, "адреса", "адреси", "адрес")}
             </span>
             <button className={styles.resetBtn} onClick={handleReset}>
               Завантажити інший файл
             </button>
           </div>
 
-          {rows.length === 0 ? (
+          {brands.length === 0 ? (
             <p className={styles.empty}>
-              Жоден рядок не відповідає збереженим адресам.
+              Жоден рядок не відповідає збереженим брендам та адресам.
             </p>
           ) : (
             <div className={styles.tableWrapper}>
               <table className={styles.table}>
                 <thead>
                   <tr>
-                    <th className={styles.th}>Грузополучатель</th>
+                    <th className={styles.th}>Бренд / Грузополучатель</th>
                     <th className={`${styles.th} ${styles.thQty}`}>
                       Кількість (в одиницях зберігання)
                     </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((row, i) => (
-                    <tr key={i} className={styles.tr}>
-                      <td className={styles.td}>{row.recipient}</td>
-                      <td className={`${styles.td} ${styles.tdQty}`}>
-                        {row.quantity.toLocaleString("uk-UA")}
-                      </td>
-                    </tr>
+                  {brands.map((b, bi) => (
+                    <>
+                      <tr key={`brand-${bi}`} className={styles.trBrand}>
+                        <td className={`${styles.td} ${styles.tdBrand}`}>{b.brand}</td>
+                        <td className={`${styles.td} ${styles.tdQty} ${styles.tdBrandQty}`}>
+                          {b.quantity.toLocaleString("uk-UA")}
+                        </td>
+                      </tr>
+                      {b.recipients.map((r, ri) => (
+                        <tr key={`recipient-${bi}-${ri}`} className={styles.trRecipient}>
+                          <td className={`${styles.td} ${styles.tdRecipient}`}>{r.recipient}</td>
+                          <td className={`${styles.td} ${styles.tdQty}`}>
+                            {r.quantity.toLocaleString("uk-UA")}
+                          </td>
+                        </tr>
+                      ))}
+                    </>
                   ))}
                 </tbody>
               </table>
