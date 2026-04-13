@@ -5,6 +5,11 @@ export interface SavedAddress {
   address: string;
 }
 
+export interface DocumentRow {
+  recipient: string;
+  quantity: number;
+}
+
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL ?? "http://localhost:5000/api",
 });
@@ -20,3 +25,9 @@ export const saveAddress = (address: string) =>
 
 export const getAddresses = () =>
   api.get<{ addresses: SavedAddress[] }>("/addresses/get-addresses");
+
+export const uploadDocument = (file: File) => {
+  const form = new FormData();
+  form.append("file", file);
+  return api.post<{ rows: DocumentRow[] }>("/document", form);
+};
