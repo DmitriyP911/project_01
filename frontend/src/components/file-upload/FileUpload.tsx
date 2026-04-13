@@ -1,8 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 
-import { uploadDocument, FilteredBrand } from "../../api/addresses";
-
 import styles from "./FileUpload.module.css";
+import { uploadDocument, FilteredBrand } from "../../api/addresses";
 
 const ACCEPTED_EXTENSIONS = [".xls", ".xlsx"];
 const ACCEPTED_MIME = [
@@ -80,6 +79,14 @@ export const FileUpload = (): JSX.Element => {
   };
 
   const totalRecipients = brands?.reduce((sum, b) => sum + b.recipients.length, 0) ?? 0;
+
+  console.log(brands);
+
+  const total =
+    brands?.reduce(
+      (sum, b) => sum + b.recipients.reduce((recSum, r) => recSum + r.quantity, 0),
+      0,
+    ) ?? 0;
 
   return (
     <div className={styles.wrapper}>
@@ -160,9 +167,7 @@ export const FileUpload = (): JSX.Element => {
           </div>
 
           {brands.length === 0 ? (
-            <p className={styles.empty}>
-              Жоден рядок не відповідає збереженим брендам та адресам.
-            </p>
+            <p className={styles.empty}>Жоден рядок не відповідає збереженим брендам та адресам.</p>
           ) : (
             <div className={styles.tableWrapper}>
               <table className={styles.table}>
@@ -199,6 +204,7 @@ export const FileUpload = (): JSX.Element => {
           )}
         </div>
       )}
+      <p>Total: {total}</p>
     </div>
   );
 };
