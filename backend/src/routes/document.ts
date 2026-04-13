@@ -1,7 +1,9 @@
 import { Router, Request, Response } from 'express';
 import multer from 'multer';
-import ExcelJS from 'exceljs';
-import { Readable } from 'stream';
+// xlsx is the only library that handles both legacy .xls (BIFF) and .xlsx (OOXML).
+// exceljs only supports .xlsx. No patched xlsx release exists; risk is acceptable
+// for an internal authenticated service — mitigated by disabling formula/HTML parsing.
+import * as XLSX from 'xlsx';
 
 import { protect, AuthRequest } from '../middleware/auth';
 import { UserAddresses } from '../models/UserAddresses';
@@ -15,8 +17,8 @@ export interface DocumentRow {
   quantity: number;
 }
 
-// Strips Ukrainian street-type abbreviations, punctuation, and extra spaces
-// so "вул.Хрещатик" and "вулиця Хрещатик" both normalize to "хрещатик"
+// Strips Ukrainian street-type prefixes, punctuation and extra whitespace so that
+// "вул.Хрещатик" and "вулиця Хрещатик" both normalise to "хрещатик".
 const normalizeStr = (s: string): string =>
   s
     .toLowerCase()
@@ -28,25 +30,21 @@ const normalizeStr = (s: string): string =>
     .replace(/\s+/g, ' ')
     .trim();
 
-// Checks whether the Excel recipient row matches any saved address.
-// Strategy: take the first two comma-parts of the saved address (street + house number),
-// tokenize them, and require every token to appear in the normalized recipient string.
+// Takes the first two comma-parts of a saved Nominatim address (street + house number),
+// tokenises them, and requires every token to appear in the normalised recipient string.
 const matchesAnyAddress = (recipient: string, savedAddresses: string[]): boolean => {
   const normRecipient = normalizeStr(recipient);
-
   return savedAddresses.some((addr) => {
     const keyPart = addr.split(',').slice(0, 2).join(' ');
     const tokens = normalizeStr(keyPart)
       .split(' ')
       .filter((t) => t.length >= 2);
-
     if (tokens.length === 0) return false;
-
     return tokens.every((t) => normRecipient.includes(t));
   });
 };
 
-// POST /api/document  (protected, multipart/form-data, field name: "file")
+// POST /api/document  (protected, multipart/form-data, field: "file")
 documentRouter.post(
   '/document',
   protect,
@@ -58,7 +56,7 @@ documentRouter.post(
         return;
       }
 
-      // --- load saved addresses for this user ---
+      // --- fetch saved addresses for this user ---
       const userId = (req as AuthRequest).user._id;
       const doc = await UserAddresses.findOne({ userId });
       const savedAddresses = (doc?.addresses ?? []).map((a) => a.address);
@@ -68,67 +66,79 @@ documentRouter.post(
         return;
       }
 
-      // --- parse the workbook ---
-      const workbook = new ExcelJS.Workbook();
-      const stream = Readable.from(req.file.buffer);
-      await workbook.xlsx.read(stream);
+      // --- parse workbook (both .xls and .xlsx) ---
+      const workbook = XLSX.read(req.file.buffer, {
+        type: 'buffer',
+        cellFormula: false, // mitigate ReDoS / formula-injection CVEs
+        cellHTML: false,
+      });
 
-      const worksheet = workbook.worksheets[0];
-      if (!worksheet) {
+      if (!workbook.SheetNames.length) {
         res.status(400).json({ message: 'No worksheet found in the file' });
         return;
       }
 
-      // --- find the header row (contains "Грузополучатель") ---
-      let headerRowNumber = -1;
-      let recipientColNumber = -1;
-      let quantityColNumber = -1;
+      // sheet_to_json with header:1 → every row is an array of cell values
+      const rawRows = XLSX.utils.sheet_to_json<unknown[]>(
+        workbook.Sheets[workbook.SheetNames[0]],
+        { header: 1, defval: '' },
+      );
 
-      worksheet.eachRow((row, rowNumber) => {
-        if (headerRowNumber !== -1) return;
+      // --- locate header row: find "Грузополучатель" and "Количество" ---
+      let headerRowIdx = -1;
+      let recipientColIdx = -1;
+      let quantityColIdx = -1;
 
-        row.eachCell((cell, colNumber) => {
-          const text = String(cell.value ?? '').trim();
-          if (text.includes('Грузополучатель')) {
-            headerRowNumber = rowNumber;
-            recipientColNumber = colNumber;
+      for (let r = 0; r < rawRows.length; r++) {
+        const row = rawRows[r];
+        let foundRecipient = false;
+        let foundQuantity = false;
+
+        for (let c = 0; c < row.length; c++) {
+          const text = String(row[c]).trim();
+          if (text.includes('Грузополучатель') && recipientColIdx === -1) {
+            recipientColIdx = c;
+            foundRecipient = true;
           }
-          if (text.includes('Количество')) {
-            quantityColNumber = colNumber;
+          if (text.includes('Количество') && quantityColIdx === -1) {
+            quantityColIdx = c;
+            foundQuantity = true;
           }
+        }
+
+        if (foundRecipient || foundQuantity) {
+          headerRowIdx = r;
+        }
+
+        // stop once we have both columns
+        if (recipientColIdx !== -1 && quantityColIdx !== -1) break;
+      }
+
+      if (headerRowIdx === -1 || recipientColIdx === -1 || quantityColIdx === -1) {
+        res.status(400).json({
+          message: 'Cannot find "Грузополучатель" / "Количество" columns in the file',
         });
-      });
-
-      if (headerRowNumber === -1 || recipientColNumber === -1 || quantityColNumber === -1) {
-        res.status(400).json({ message: 'Cannot find "Грузополучатель" / "Количество" columns in the file' });
         return;
       }
 
-      // --- collect matching rows ---
+      // --- filter data rows ---
       const rows: DocumentRow[] = [];
 
-      worksheet.eachRow((row, rowNumber) => {
-        if (rowNumber <= headerRowNumber) return;
-
-        const recipientCell = row.getCell(recipientColNumber);
-        const quantityCell = row.getCell(quantityColNumber);
-
-        const recipient = String(
-          recipientCell.value ?? recipientCell.text ?? '',
-        ).trim();
-
-        const rawQty = quantityCell.value;
+      for (let r = headerRowIdx + 1; r < rawRows.length; r++) {
+        const row = rawRows[r];
+        const recipient = String(row[recipientColIdx] ?? '').trim();
+        const rawQty = row[quantityColIdx];
         const quantity =
           typeof rawQty === 'number'
             ? rawQty
-            : parseFloat(String(rawQty ?? '').replace(',', '.')) || 0;
+            : parseFloat(String(rawQty).replace(',', '.')) || 0;
 
-        if (!recipient || quantity === 0) return;
+        if (!recipient || quantity === 0) continue;
 
         if (matchesAnyAddress(recipient, savedAddresses)) {
           rows.push({ recipient, quantity });
         }
-      });
+      }
 
       res.json({ rows });
     } catch (err) {
