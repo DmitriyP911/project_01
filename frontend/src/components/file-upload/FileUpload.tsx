@@ -80,8 +80,6 @@ export const FileUpload = (): JSX.Element => {
 
   const totalRecipients = brands?.reduce((sum, b) => sum + b.recipients.length, 0) ?? 0;
 
-  console.log(brands);
-
   const total =
     brands?.reduce(
       (sum, b) => sum + b.recipients.reduce((recSum, r) => recSum + r.quantity, 0),
@@ -204,7 +202,7 @@ export const FileUpload = (): JSX.Element => {
           )}
         </div>
       )}
-      <p>Total: {total}</p>
+      {!!total && <p>Total: {total}</p>}
     </div>
   );
 };
