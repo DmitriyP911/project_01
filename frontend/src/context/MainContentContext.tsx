@@ -1,11 +1,8 @@
 import { createContext, useContext, useState } from "react";
 
-import { NominatimResult } from "../types/nominatim";
-
 interface MainContentContextValue {
-  addresses: NominatimResult[];
-  addAddress: (address: NominatimResult) => void;
-  removeAddress: (placeId: number) => void;
+  refreshKey: number;
+  triggerRefresh: () => void;
 }
 
 interface MainContentContextProviderProps {
@@ -17,21 +14,14 @@ const MainContentContext = createContext<MainContentContextValue | null>(null);
 export const MainContentContextProvider = ({
   children,
 }: MainContentContextProviderProps): JSX.Element => {
-  const [addresses, setAddresses] = useState<NominatimResult[]>([]);
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  const addAddress = (address: NominatimResult): void => {
-    setAddresses((prev) => {
-      if (prev.some((a) => a.place_id === address.place_id)) return prev;
-      return [...prev, address];
-    });
-  };
-
-  const removeAddress = (placeId: number): void => {
-    setAddresses((prev) => prev.filter((a) => a.place_id !== placeId));
+  const triggerRefresh = (): void => {
+    setRefreshKey((prev) => prev + 1);
   };
 
   return (
-    <MainContentContext.Provider value={{ addresses, addAddress, removeAddress }}>
+    <MainContentContext.Provider value={{ refreshKey, triggerRefresh }}>
       {children}
     </MainContentContext.Provider>
   );

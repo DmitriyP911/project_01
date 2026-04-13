@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
+import { saveAddress } from "../../api/addresses";
 import { useMainContentContext } from "../../context/MainContentContext";
 
 import styles from "./SelectAddress.module.css";
@@ -37,7 +38,7 @@ const fetchAddresses = async (query: string): Promise<NominatimResult[]> => {
 };
 
 export const SelectAddress = (): JSX.Element => {
-  const { addresses, addAddress } = useMainContentContext();
+  const { triggerRefresh } = useMainContentContext();
 
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<NominatimResult[]>([]);
@@ -48,6 +49,7 @@ export const SelectAddress = (): JSX.Element => {
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const addedThisSession = useRef<Set<string>>(new Set());
 
   const search = useCallback(async (value: string) => {
     if (value.trim().length < 2) {
@@ -98,12 +100,18 @@ export const SelectAddress = (): JSX.Element => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleSelect = (result: NominatimResult): void => {
-    addAddress(result);
-    setQuery("");
-    setResults([]);
-    setOpen(false);
-    setError(null);
+  const handleSelect = async (result: NominatimResult): Promise<void> => {
+    try {
+      await saveAddress(result.display_name);
+      addedThisSession.current.add(result.display_name);
+      triggerRefresh();
+      setQuery("");
+      setResults([]);
+      setOpen(false);
+      setError(null);
+    } catch {
+      setError("Не вдалося зберегти адресу. Спробуйте ще раз.");
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
@@ -117,8 +125,8 @@ export const SelectAddress = (): JSX.Element => {
     setError(null);
   };
 
-  const isAlreadyAdded = (placeId: number): boolean =>
-    addresses.some((a) => a.place_id === placeId);
+  const isAlreadyAdded = (displayName: string): boolean =>
+    addedThisSession.current.has(displayName);
 
   return (
     <div className={styles.wrapper} ref={containerRef}>
@@ -154,7 +162,7 @@ export const SelectAddress = (): JSX.Element => {
       {open && results.length > 0 && (
         <ul id="address-listbox" className={styles.dropdown} role="listbox">
           {results.map((result) => {
-            const added = isAlreadyAdded(result.place_id);
+            const added = isAlreadyAdded(result.display_name);
             return (
               <li
                 key={result.place_id}
@@ -162,7 +170,7 @@ export const SelectAddress = (): JSX.Element => {
                 role="option"
                 aria-selected={added}
                 onMouseDown={() => {
-                  if (!added) handleSelect(result);
+                  if (!added) void handleSelect(result);
                 }}
               >
                 <span className={styles.optionText}>{result.display_name}</span>

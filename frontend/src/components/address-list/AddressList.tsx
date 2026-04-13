@@ -1,15 +1,28 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
+import { getAddresses, SavedAddress } from "../../api/addresses";
 import { useMainContentContext } from "../../context/MainContentContext";
 
 import styles from "./AddressList.module.css";
 
 export const AddressList = (): JSX.Element => {
-  const { addresses, removeAddress } = useMainContentContext();
+  const { refreshKey } = useMainContentContext();
+  const [addresses, setAddresses] = useState<SavedAddress[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
 
+  useEffect(() => {
+    setLoading(true);
+    setError(null);
+    getAddresses()
+      .then((res) => setAddresses(res.data.addresses))
+      .catch(() => setError("Не вдалося завантажити адреси."))
+      .finally(() => setLoading(false));
+  }, [refreshKey]);
+
   const filtered = addresses.filter((a) =>
-    a.display_name.toLowerCase().includes(filter.toLowerCase()),
+    a.address.toLowerCase().includes(filter.toLowerCase()),
   );
 
   return (
@@ -32,26 +45,23 @@ export const AddressList = (): JSX.Element => {
         )}
       </div>
 
-      {addresses.length === 0 && (
+      {loading && <p className={styles.empty}>Завантаження...</p>}
+
+      {error && <p className={styles.empty}>{error}</p>}
+
+      {!loading && !error && addresses.length === 0 && (
         <p className={styles.empty}>Ще немає вибраних адрес. Скористайтесь пошуком вище.</p>
       )}
 
-      {addresses.length > 0 && filtered.length === 0 && (
+      {!loading && !error && addresses.length > 0 && filtered.length === 0 && (
         <p className={styles.empty}>Нічого не знайдено за фільтром «{filter}».</p>
       )}
 
-      {filtered.length > 0 && (
+      {!loading && filtered.length > 0 && (
         <ul className={styles.list}>
-          {filtered.map((address) => (
-            <li key={address.place_id} className={styles.item}>
-              <span className={styles.itemText}>{address.display_name}</span>
-              <button
-                className={styles.removeBtn}
-                onClick={() => removeAddress(address.place_id)}
-                aria-label={`Видалити ${address.display_name}`}
-              >
-                ✕
-              </button>
+          {filtered.map((a) => (
+            <li key={a._id} className={styles.item}>
+              <span className={styles.itemText}>{a.address}</span>
             </li>
           ))}
         </ul>
