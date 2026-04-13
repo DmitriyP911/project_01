@@ -84,40 +84,53 @@ documentRouter.post(
         { header: 1, defval: '' },
       );
 
-      // --- locate header row: find "Грузополучатель" and "Количество" ---
+      // --- locate header row ---
+      // Step 1: find the row that contains "Грузополучатель" — that is the true
+      // column header row. We must NOT search for "Количество" globally because
+      // the metadata rows (e.g. "Показатели: Количество (в единицах хранения)")
+      // appear earlier in the file and would give a wrong column index.
       let headerRowIdx = -1;
       let recipientColIdx = -1;
       let quantityColIdx = -1;
 
       for (let r = 0; r < rawRows.length; r++) {
         const row = rawRows[r];
-        let foundRecipient = false;
-        let foundQuantity = false;
-
         for (let c = 0; c < row.length; c++) {
-          const text = String(row[c]).trim();
-          if (text.includes('Грузополучатель') && recipientColIdx === -1) {
+          if (String(row[c]).trim().includes('Грузополучатель')) {
+            headerRowIdx = r;
             recipientColIdx = c;
-            foundRecipient = true;
-          }
-          if (text.includes('Количество') && quantityColIdx === -1) {
-            quantityColIdx = c;
-            foundQuantity = true;
+            break;
           }
         }
-
-        if (foundRecipient || foundQuantity) {
-          headerRowIdx = r;
-        }
-
-        // stop once we have both columns
-        if (recipientColIdx !== -1 && quantityColIdx !== -1) break;
+        if (headerRowIdx !== -1) break;
       }
 
-      if (headerRowIdx === -1 || recipientColIdx === -1 || quantityColIdx === -1) {
-        res.status(400).json({
-          message: 'Cannot find "Грузополучатель" / "Количество" columns in the file',
-        });
+      if (headerRowIdx === -1 || recipientColIdx === -1) {
+        res.status(400).json({ message: 'Cannot find "Грузополучатель" column in the file' });
+        return;
+      }
+
+      // Step 2: find "Количество" starting from the header row (look up to 2 rows
+      // ahead to cover multi-row merged header cells).
+      for (let r = headerRowIdx; r <= Math.min(headerRowIdx + 2, rawRows.length - 1); r++) {
+        const row = rawRows[r];
+        for (let c = 0; c < row.length; c++) {
+          if (String(row[c]).trim().includes('Количество')) {
+            quantityColIdx = c;
+            break;
+          }
+        }
+        if (quantityColIdx !== -1) break;
+      }
+
+      if (quantityColIdx === -1) {
+        res.status(400).json({ message: 'Cannot find "Количество" column in the file' });
+        return;
+      }
+
+      // Sanity check: both columns must differ
+      if (quantityColIdx === recipientColIdx) {
+        res.status(400).json({ message: 'Recipient and quantity columns resolved to the same index — check file structure' });
         return;
       }
 
