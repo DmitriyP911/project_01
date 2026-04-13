@@ -2,6 +2,7 @@ import { MainContentContextProvider } from "../../context/MainContentContext";
 import { AddressList } from "../address-list";
 import { FileUpload } from "../file-upload";
 import { SelectAddress } from "../select-address";
+import { SelectBrands } from "../select-brands";
 import styles from "./MainContent.module.css";
 
 export const MainContent = (): JSX.Element => (
@@ -11,6 +12,7 @@ export const MainContent = (): JSX.Element => (
       <FileUpload />
       <SelectAddress />
       <AddressList />
+      <SelectBrands />
     </section>
   </MainContentContextProvider>
 );

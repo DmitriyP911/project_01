@@ -5,6 +5,7 @@ import { connectDB } from './config/db';
 import { authRouter } from './routes/auth';
 import { addressesRouter } from './routes/addresses';
 import { documentRouter } from './routes/document';
+import { brandsRouter } from './routes/brands';
 
 const app = express();
 
@@ -20,6 +21,7 @@ app.use(express.json());
 app.use('/api/auth', authRouter);
 app.use('/api/addresses', addressesRouter);
 app.use('/api', documentRouter);
+app.use('/api', brandsRouter);
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok' });

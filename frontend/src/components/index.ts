@@ -6,3 +6,4 @@ export * from "./main-content/MainContent";
 export * from "../context/MainContentContext";
 export * from "./privat-route/PrivateRoute";
 export * from "./select-address/SelectAddress";
+export * from "./select-brands/SelectBrands";
