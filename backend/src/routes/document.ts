@@ -17,28 +17,75 @@ export interface DocumentRow {
   quantity: number;
 }
 
-// Strips Ukrainian street-type prefixes, punctuation and extra whitespace so that
-// "вул.Хрещатик" and "вулиця Хрещатик" both normalise to "хрещатик".
+// Detects street-type keywords anywhere in a string (handles both
+// "вулиця Назва" and "Назва вулиця" orderings used by Nominatim).
+const STREET_TYPE_RE =
+  /вулиця|вул\.?|бульвар|б-р\.?|проспект|просп\.?|провулок|пров\.?|площа|пл\.?|шосе|набережна/i;
+
+// House/unit number: starts with a digit, optionally followed by dash/slash
+// suffix (e.g. "54", "1-П" → "1п", "13/146"). Max 10 chars to exclude long parts.
+const HOUSE_NUM_RE = /^\d+([-\/][\dа-яіїєґa-z]+)*$/i;
+
+// Normalise a string for token matching:
+//   • remove street-type keywords
+//   • collapse hyphens so "1-П" → "1п" (becomes a 2-char token, not two 1-char tokens)
+//   • strip all remaining punctuation/special chars
 const normalizeStr = (s: string): string =>
   s
     .toLowerCase()
-    .replace(
-      /\b(вулиця|вул\.?|бульвар|б-р\.?|проспект|просп\.?|пр\.?|провулок|пров\.?|площа|пл\.?|шосе|ш\.?)\b/g,
-      ' ',
-    )
+    .replace(STREET_TYPE_RE, ' ')
+    .replace(/-/g, '') // join hyphenated parts: "1-П"→"1п", "10-й"→"10й"
     .replace(/[^а-яіїєґa-z0-9]/gi, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 
-// Takes the first two comma-parts of a saved Nominatim address (street + house number),
-// tokenises them, and requires every token to appear in the normalised recipient string.
+// Build a precise token set from a Nominatim address by targeting only the
+// parts that reliably appear in Excel recipient strings:
+//
+//   • Part containing a street-type keyword  → street name tokens
+//   • Short digit-starting part              → house/unit number token
+//   • First part (POI/amenity name)          → tokens ≥ 4 chars only
+//   • Everything else (neighbourhood, city, oblast, country) is skipped
+//
+// Examples:
+//   "Адоніс №8, 1-П, Армійська вулиця, Володарка, ..."
+//     → ["адоніс", "1п", "армійська"]           (POI + house + street)
+//   "54, вулиця Ревуцького, 10-й мікрорайон Осокорків, ..."
+//     → ["54", "ревуцького"]                     (house + street; neighbourhood skipped)
+const extractMatchTokens = (address: string): string[] => {
+  const parts = address.split(',').map((p) => p.trim()).slice(0, 6);
+  const tokens: string[] = [];
+
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+
+    // ── Street name part ────────────────────────────────────────────────
+    if (STREET_TYPE_RE.test(part)) {
+      tokens.push(...normalizeStr(part).split(' ').filter((t) => t.length >= 2));
+      continue;
+    }
+
+    // ── House / unit number part ────────────────────────────────────────
+    const stripped = part.replace(/\s+/g, '');
+    if (stripped.length >= 1 && stripped.length <= 10 && HOUSE_NUM_RE.test(stripped)) {
+      tokens.push(...normalizeStr(part).split(' ').filter((t) => t.length >= 2));
+      continue;
+    }
+
+    // ── POI / amenity name (first part only, substantive tokens ≥ 4 chars) ──
+    if (i === 0) {
+      tokens.push(...normalizeStr(part).split(' ').filter((t) => t.length >= 4));
+    }
+    // All other parts (neighbourhood, district, city, oblast, country) → skip
+  }
+
+  return [...new Set(tokens)];
+};
+
 const matchesAnyAddress = (recipient: string, savedAddresses: string[]): boolean => {
   const normRecipient = normalizeStr(recipient);
   return savedAddresses.some((addr) => {
-    const keyPart = addr.split(',').slice(0, 2).join(' ');
-    const tokens = normalizeStr(keyPart)
-      .split(' ')
-      .filter((t) => t.length >= 2);
+    const tokens = extractMatchTokens(addr);
     if (tokens.length === 0) return false;
     return tokens.every((t) => normRecipient.includes(t));
   });
