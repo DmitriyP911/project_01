@@ -25,7 +25,17 @@ export const FileUpload = (): JSX.Element => {
   const [error, setError] = useState<string | null>(null);
   const [brands, setBrands] = useState<FilteredBrand[] | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
+  const [collapsedBrands, setCollapsedBrands] = useState<Set<number>>(new Set());
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const toggleBrand = (index: number): void => {
+    setCollapsedBrands((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      return next;
+    });
+  };
 
   const processFile = useCallback(async (file: File): Promise<void> => {
     if (!isValidFile(file)) {
@@ -36,6 +46,7 @@ export const FileUpload = (): JSX.Element => {
     setUploading(true);
     setError(null);
     setBrands(null);
+    setCollapsedBrands(new Set());
     try {
       const res = await uploadDocument(file);
       setBrands(res.data.brands);
@@ -76,6 +87,7 @@ export const FileUpload = (): JSX.Element => {
     setBrands(null);
     setFileName(null);
     setError(null);
+    setCollapsedBrands(new Set());
   };
 
   const totalRecipients = brands?.reduce((sum, b) => sum + b.recipients.length, 0) ?? 0;
@@ -178,24 +190,45 @@ export const FileUpload = (): JSX.Element => {
                   </tr>
                 </thead>
                 <tbody>
-                  {brands.map((b, bi) => (
-                    <>
-                      <tr key={`brand-${bi}`} className={styles.trBrand}>
-                        <td className={`${styles.td} ${styles.tdBrand}`}>{b.brand}</td>
-                        <td className={`${styles.td} ${styles.tdQty} ${styles.tdBrandQty}`}>
-                          {b.quantity.toLocaleString("uk-UA")}
-                        </td>
-                      </tr>
-                      {b.recipients.map((r, ri) => (
-                        <tr key={`recipient-${bi}-${ri}`} className={styles.trRecipient}>
-                          <td className={`${styles.td} ${styles.tdRecipient}`}>{r.recipient}</td>
-                          <td className={`${styles.td} ${styles.tdQty}`}>
-                            {r.quantity.toLocaleString("uk-UA")}
+                  {brands.map((b, bi) => {
+                    const isCollapsed = !collapsedBrands.has(bi);
+                    return (
+                      <>
+                        <tr
+                          key={`brand-${bi}`}
+                          className={styles.trBrand}
+                          onClick={() => toggleBrand(bi)}
+                        >
+                          <td className={`${styles.td} ${styles.tdBrand}`}>
+                            <span
+                              className={`${styles.chevron} ${isCollapsed ? styles.chevronCollapsed : ""}`}
+                            >
+                              ▾
+                            </span>
+                            {b.brand}
+                          </td>
+                          <td className={`${styles.td} ${styles.tdQty} ${styles.tdBrandQty}`}>
+                            {b.quantity.toLocaleString("uk-UA")}
+                            <span className={styles.brandAddressCount}>
+                              {" / "}
+                              {b.recipients.reduce((acc, r) => acc + r.quantity, 0)}
+                            </span>
                           </td>
                         </tr>
-                      ))}
-                    </>
-                  ))}
+                        {!isCollapsed &&
+                          b.recipients.map((r, ri) => (
+                            <tr key={`recipient-${bi}-${ri}`} className={styles.trRecipient}>
+                              <td className={`${styles.td} ${styles.tdRecipient}`}>
+                                {r.recipient}
+                              </td>
+                              <td className={`${styles.td} ${styles.tdQty}`}>
+                                {r.quantity.toLocaleString("uk-UA")}
+                              </td>
+                            </tr>
+                          ))}
+                      </>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

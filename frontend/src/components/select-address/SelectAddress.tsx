@@ -9,7 +9,7 @@ import { saveAddress } from "../../api/addresses";
 import { useMainContentContext } from "../../context/MainContentContext";
 
 export const SelectAddress = (): JSX.Element => {
-  const { triggerRefresh } = useMainContentContext();
+  const { setAddresses } = useMainContentContext();
 
   const [query, setQuery] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -19,9 +19,9 @@ export const SelectAddress = (): JSX.Element => {
 
   const handleSubmit = async (result: NominatimResult): Promise<void> => {
     try {
-      await saveAddress(result.display_name);
+      const res = await saveAddress(result.display_name);
       addedThisSession.current.add(result.display_name);
-      triggerRefresh();
+      setAddresses(res.data.addresses);
       setQuery("");
       toast.success(`Адресу додано: ${result.display_name}`);
     } catch (err) {

@@ -1,8 +1,12 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useState, useEffect } from "react";
+
+import { getAddresses, SavedAddress } from "../api/addresses";
 
 interface MainContentContextValue {
-  refreshKey: number;
-  triggerRefresh: () => void;
+  addresses: SavedAddress[];
+  addressesLoading: boolean;
+  addressesError: string | null;
+  setAddresses: (addresses: SavedAddress[]) => void;
 }
 
 interface MainContentContextProviderProps {
@@ -14,14 +18,21 @@ const MainContentContext = createContext<MainContentContextValue | null>(null);
 export const MainContentContextProvider = ({
   children,
 }: MainContentContextProviderProps): JSX.Element => {
-  const [refreshKey, setRefreshKey] = useState(0);
+  const [addresses, setAddresses] = useState<SavedAddress[]>([]);
+  const [addressesLoading, setAddressesLoading] = useState(true);
+  const [addressesError, setAddressesError] = useState<string | null>(null);
 
-  const triggerRefresh = (): void => {
-    setRefreshKey((prev) => prev + 1);
-  };
+  useEffect(() => {
+    getAddresses()
+      .then((res) => setAddresses(res.data.addresses))
+      .catch(() => setAddressesError("Не вдалося завантажити адреси."))
+      .finally(() => setAddressesLoading(false));
+  }, []);
 
   return (
-    <MainContentContext.Provider value={{ refreshKey, triggerRefresh }}>
+    <MainContentContext.Provider
+      value={{ addresses, addressesLoading, addressesError, setAddresses }}
+    >
       {children}
     </MainContentContext.Provider>
   );

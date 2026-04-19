@@ -1,31 +1,20 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import toast from "react-hot-toast";
 
 import styles from "./AddressList.module.css";
-import { getAddresses, deleteAddress, SavedAddress } from "../../api/addresses";
+import { deleteAddress } from "../../api/addresses";
 import { useMainContentContext } from "../../context/MainContentContext";
 
 export const AddressList = (): JSX.Element => {
-  const { refreshKey } = useMainContentContext();
-  const [addresses, setAddresses] = useState<SavedAddress[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { addresses, addressesLoading, addressesError, setAddresses } = useMainContentContext();
   const [filter, setFilter] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
-
-  useEffect(() => {
-    setLoading(true);
-    setError(null);
-    getAddresses()
-      .then((res) => setAddresses(res.data.addresses))
-      .catch(() => setError("Не вдалося завантажити адреси."))
-      .finally(() => setLoading(false));
-  }, [refreshKey]);
 
   const handleDelete = (id: string): void => {
     setDeletingId(id);
     deleteAddress(id)
       .then((res) => setAddresses(res.data.addresses))
-      .catch(() => setError("Не вдалося видалити адресу."))
+      .catch(() => toast.error("Не вдалося видалити адресу."))
       .finally(() => setDeletingId(null));
   };
 
@@ -51,19 +40,19 @@ export const AddressList = (): JSX.Element => {
         )}
       </div>
 
-      {loading && <p className={styles.empty}>Завантаження...</p>}
+      {addressesLoading && <p className={styles.empty}>Завантаження...</p>}
 
-      {error && <p className={styles.empty}>{error}</p>}
+      {addressesError && <p className={styles.empty}>{addressesError}</p>}
 
-      {!loading && !error && addresses.length === 0 && (
+      {!addressesLoading && !addressesError && addresses.length === 0 && (
         <p className={styles.empty}>Ще немає вибраних адрес. Скористайтесь пошуком вище.</p>
       )}
 
-      {!loading && !error && addresses.length > 0 && filtered.length === 0 && (
+      {!addressesLoading && !addressesError && addresses.length > 0 && filtered.length === 0 && (
         <p className={styles.empty}>Нічого не знайдено за фільтром «{filter}».</p>
       )}
 
-      {!loading && filtered.length > 0 && (
+      {!addressesLoading && filtered.length > 0 && (
         <ul className={styles.list}>
           {filtered.map((a) => (
             <li key={a._id} className={styles.item}>

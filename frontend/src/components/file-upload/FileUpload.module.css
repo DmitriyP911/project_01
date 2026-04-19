@@ -211,6 +211,11 @@
 }
 
 /* Brand header row */
+.trBrand {
+  cursor: pointer;
+  user-select: none;
+}
+
 .trBrand td {
   background: #eef1ff;
   border-top: 1px solid #c7d2fe;
@@ -219,6 +224,31 @@
 
 .trBrand:first-child td {
   border-top: none;
+}
+
+.trBrand:hover td {
+  background: #e0e7ff;
+}
+
+/* Chevron icon */
+.chevron {
+  display: inline-block;
+  margin-right: 8px;
+  font-size: 0.75rem;
+  color: #6366f1;
+  transition: transform 0.18s ease;
+  transform: rotate(0deg);
+}
+
+.chevronCollapsed {
+  transform: rotate(-90deg);
+}
+
+/* Address count after slash */
+.brandAddressCount {
+  font-weight: 400;
+  color: #6366f1;
+  font-size: 0.8125rem;
 }
 
 /* Recipient row under a brand */
