@@ -27,10 +27,6 @@ export const BrandsTable = ({ brands, onReset }: BrandsTableProps): JSX.Element 
   };
 
   const totalRecipients = brands.reduce((sum, b) => sum + b.recipients.length, 0);
-  const total = brands.reduce(
-    (sum, b) => sum + b.recipients.reduce((recSum, r) => recSum + r.quantity, 0),
-    0,
-  );
 
   return (
     <div className={styles.results}>
