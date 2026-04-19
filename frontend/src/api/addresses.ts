@@ -32,6 +32,9 @@ export const saveAddress = (address: string) =>
 export const getAddresses = () =>
   api.get<{ addresses: SavedAddress[] }>("/addresses/get-addresses");
 
+export const deleteAddress = (addressId: string) =>
+  api.delete<{ addresses: SavedAddress[] }>("/addresses/delete-address", { data: { addressId } });
+
 export const uploadDocument = (file: File) => {
   const form = new FormData();
   form.append("file", file);

@@ -19,3 +19,6 @@ export const addBrand = (payload: SavedBrand) =>
   api.post<{ brands: SavedBrand[] }>("/brands", payload);
 
 export const getBrands = () => api.get<{ brands: SavedBrand[] }>("/brands");
+
+export const deleteBrand = (id: string) =>
+  api.delete<{ brands: SavedBrand[] }>("/brands/delete-brand", { data: { id } });

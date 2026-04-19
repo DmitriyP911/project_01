@@ -1,5 +1,4 @@
 import { MainContentContextProvider } from "../../context/MainContentContext";
-import { AddressList } from "../address-list";
 import { FileUpload } from "../file-upload";
 import { SelectAddress } from "../select-address";
 import { SelectBrands } from "../select-brands";
@@ -11,7 +10,6 @@ export const MainContent = (): JSX.Element => (
       <h1 className={styles.title}>Дашборд</h1>
       <FileUpload />
       <SelectAddress />
-      <AddressList />
       <SelectBrands />
     </section>
   </MainContentContextProvider>

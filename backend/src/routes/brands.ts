@@ -17,6 +17,12 @@ brandsRouter.post('/brands', protect, async (req: Request, res: Response): Promi
 
     const userId = (req as AuthRequest).user._id;
 
+    const existing = await UserBrands.findOne({ userId, 'brands.brand': brand });
+    if (existing) {
+      res.status(409).json({ message: 'Такий бренд вже доданий' });
+      return;
+    }
+
     const doc = await UserBrands.findOneAndUpdate(
       { userId },
       { $push: { brands: { brand, id } } },
@@ -39,3 +45,31 @@ brandsRouter.get('/brands', protect, async (req: Request, res: Response): Promis
     res.status(500).json({ message: (err as Error).message });
   }
 });
+
+// DELETE /api/brands/delete-brand  (protected)
+brandsRouter.delete(
+  '/brands/delete-brand',
+  protect,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { id } = req.body as { id?: string };
+
+      if (!id) {
+        res.status(400).json({ message: 'id is required' });
+        return;
+      }
+
+      const userId = (req as AuthRequest).user._id;
+
+      const doc = await UserBrands.findOneAndUpdate(
+        { userId },
+        { $pull: { brands: { id } } },
+        { new: true },
+      );
+
+      res.json({ brands: doc?.brands ?? [] });
+    } catch (err) {
+      res.status(500).json({ message: (err as Error).message });
+    }
+  },
+);

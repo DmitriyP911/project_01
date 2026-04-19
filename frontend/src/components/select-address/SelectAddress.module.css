@@ -1,15 +1,41 @@
 .wrapper {
   position: relative;
   width: 100%;
-  max-width: 520px;
+  display: flex;
+ justify-content: space-between;
+  align-items: end;
+}
+
+.labelRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
 }
 
 .label {
-  display: block;
-  margin-bottom: 6px;
   font-size: 0.875rem;
   font-weight: 600;
   color: #374151;
+}
+
+.viewAllBtn {
+  padding: 4px 12px;
+  font-size: 0.8125rem;
+  height: 36px;
+  font-weight: 500;
+  color: #4f6ef7;
+  background: #eef1ff;
+  border: 1px solid #c7d2fe;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+  white-space: nowrap;
+}
+
+.viewAllBtn:hover {
+  background: #e0e7ff;
+  border-color: #a5b4fc;
 }
 
 .inputWrapper {
@@ -46,6 +72,32 @@
 
 .inputError:focus {
   box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15);
+}
+
+/* Add button */
+.addBtn {
+  flex-shrink: 0;
+  margin-left: 8px;
+  padding: 10px 18px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #ffffff;
+  background: #4f6ef7;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.2s, box-shadow 0.2s, transform 0.1s;
+}
+
+.addBtn:hover {
+  background: #3b5bdb;
+  box-shadow: 0 4px 12px rgba(79, 110, 247, 0.35);
+}
+
+.addBtn:active {
+  transform: scale(0.97);
+  background: #3451c7;
 }
 
 /* Spinner */
