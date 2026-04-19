@@ -1,0 +1,1 @@
+export { BrandsTable } from "./BrandsTable";

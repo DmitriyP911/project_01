@@ -1,7 +1,8 @@
 import { useState, useRef, useCallback } from "react";
 
-import styles from "./FileUpload.module.css";
 import { uploadDocument, FilteredBrand } from "../../api/addresses";
+import { BrandsTable } from "../brands-table";
+import styles from "./FileUpload.module.css";
 
 const ACCEPTED_EXTENSIONS = [".xls", ".xlsx"];
 const ACCEPTED_MIME = [
@@ -13,29 +14,13 @@ const isValidFile = (file: File): boolean =>
   ACCEPTED_MIME.includes(file.type) ||
   ACCEPTED_EXTENSIONS.some((ext) => file.name.toLowerCase().endsWith(ext));
 
-const pluralUk = (n: number, one: string, few: string, many: string): string => {
-  if (n % 10 === 1 && n % 100 !== 11) return `${n} ${one}`;
-  if (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20)) return `${n} ${few}`;
-  return `${n} ${many}`;
-};
-
 export const FileUpload = (): JSX.Element => {
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [brands, setBrands] = useState<FilteredBrand[] | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
-  const [collapsedBrands, setCollapsedBrands] = useState<Set<number>>(new Set());
   const inputRef = useRef<HTMLInputElement>(null);
-
-  const toggleBrand = (index: number): void => {
-    setCollapsedBrands((prev) => {
-      const next = new Set(prev);
-      if (next.has(index)) next.delete(index);
-      else next.add(index);
-      return next;
-    });
-  };
 
   const processFile = useCallback(async (file: File): Promise<void> => {
     if (!isValidFile(file)) {
@@ -46,7 +31,6 @@ export const FileUpload = (): JSX.Element => {
     setUploading(true);
     setError(null);
     setBrands(null);
-    setCollapsedBrands(new Set());
     try {
       const res = await uploadDocument(file);
       setBrands(res.data.brands);
@@ -87,16 +71,7 @@ export const FileUpload = (): JSX.Element => {
     setBrands(null);
     setFileName(null);
     setError(null);
-    setCollapsedBrands(new Set());
   };
-
-  const totalRecipients = brands?.reduce((sum, b) => sum + b.recipients.length, 0) ?? 0;
-
-  const total =
-    brands?.reduce(
-      (sum, b) => sum + b.recipients.reduce((recSum, r) => recSum + r.quantity, 0),
-      0,
-    ) ?? 0;
 
   return (
     <div className={styles.wrapper}>
@@ -163,79 +138,7 @@ export const FileUpload = (): JSX.Element => {
 
       {error && <p className={styles.error}>{error}</p>}
 
-      {brands !== null && (
-        <div className={styles.results}>
-          <div className={styles.resultsHeader}>
-            <span className={styles.resultsCount}>
-              {pluralUk(brands.length, "бренд", "бренди", "брендів")}
-              {" · "}
-              {pluralUk(totalRecipients, "адреса", "адреси", "адрес")}
-            </span>
-            <button className={styles.resetBtn} onClick={handleReset}>
-              Завантажити інший файл
-            </button>
-          </div>
-
-          {brands.length === 0 ? (
-            <p className={styles.empty}>Жоден рядок не відповідає збереженим брендам та адресам.</p>
-          ) : (
-            <div className={styles.tableWrapper}>
-              <table className={styles.table}>
-                <thead>
-                  <tr>
-                    <th className={styles.th}>Бренд / Грузополучатель</th>
-                    <th className={`${styles.th} ${styles.thQty}`}>
-                      Кількість (в одиницях зберігання)
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {brands.map((b, bi) => {
-                    const isCollapsed = !collapsedBrands.has(bi);
-                    return (
-                      <>
-                        <tr
-                          key={`brand-${bi}`}
-                          className={styles.trBrand}
-                          onClick={() => toggleBrand(bi)}
-                        >
-                          <td className={`${styles.td} ${styles.tdBrand}`}>
-                            <span
-                              className={`${styles.chevron} ${isCollapsed ? styles.chevronCollapsed : ""}`}
-                            >
-                              ▾
-                            </span>
-                            {b.brand}
-                          </td>
-                          <td className={`${styles.td} ${styles.tdQty} ${styles.tdBrandQty}`}>
-                            {b.quantity.toLocaleString("uk-UA")}
-                            <span className={styles.brandAddressCount}>
-                              {" / "}
-                              {b.recipients.reduce((acc, r) => acc + r.quantity, 0)}
-                            </span>
-                          </td>
-                        </tr>
-                        {!isCollapsed &&
-                          b.recipients.map((r, ri) => (
-                            <tr key={`recipient-${bi}-${ri}`} className={styles.trRecipient}>
-                              <td className={`${styles.td} ${styles.tdRecipient}`}>
-                                {r.recipient}
-                              </td>
-                              <td className={`${styles.td} ${styles.tdQty}`}>
-                                {r.quantity.toLocaleString("uk-UA")}
-                              </td>
-                            </tr>
-                          ))}
-                      </>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
-      {!!total && <p>Total: {total}</p>}
+      {brands !== null && <BrandsTable brands={brands} onReset={handleReset} />}
     </div>
   );
 };

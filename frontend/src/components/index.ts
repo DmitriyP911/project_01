@@ -1,4 +1,5 @@
 export * from "./address-list/AddressList";
+export * from "./brands-table/BrandsTable";
 export * from "./file-upload/FileUpload";
 export * from "./footer/Footer";
 export * from "./header/Header";
