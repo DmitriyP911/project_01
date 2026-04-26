@@ -26,53 +26,9 @@ export interface FilteredBrand {
 
 // ── Address matching ────────────────────────────────────────────────────────
 
-const STREET_TYPE_RE =
-  /вулиця|вул\.?|бульвар|б-р\.?|проспект|просп\.?|провулок|пров\.?|площа|пл\.?|шосе|набережна/i;
-
-const HOUSE_NUM_RE = /^\d+([-\/][\dа-яіїєґa-z]+)*$/i;
-
-const normalizeStr = (s: string): string =>
-  s
-    .toLowerCase()
-    .replace(STREET_TYPE_RE, ' ')
-    .replace(/-/g, '')
-    .replace(/[^а-яіїєґa-z0-9]/gi, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-
-const extractMatchTokens = (address: string): string[] => {
-  const parts = address.split(',').map((p) => p.trim()).slice(0, 6);
-  const tokens: string[] = [];
-
-  for (let i = 0; i < parts.length; i++) {
-    const part = parts[i];
-
-    if (STREET_TYPE_RE.test(part)) {
-      tokens.push(...normalizeStr(part).split(' ').filter((t) => t.length >= 2));
-      continue;
-    }
-
-    const stripped = part.replace(/\s+/g, '');
-    if (stripped.length >= 1 && stripped.length <= 10 && HOUSE_NUM_RE.test(stripped)) {
-      tokens.push(...normalizeStr(part).split(' ').filter((t) => t.length >= 2));
-      continue;
-    }
-
-    if (i === 0) {
-      tokens.push(...normalizeStr(part).split(' ').filter((t) => t.length >= 4));
-    }
-  }
-
-  return [...new Set(tokens)];
-};
-
 const matchesAnyAddress = (recipient: string, savedAddresses: string[]): boolean => {
-  const normRecipient = normalizeStr(recipient);
-  return savedAddresses.some((addr) => {
-    const tokens = extractMatchTokens(addr);
-    if (tokens.length === 0) return false;
-    return tokens.every((t) => normRecipient.includes(t));
-  });
+  const recipientLower = recipient.toLowerCase();
+  return savedAddresses.some((addr) => recipientLower.includes(addr.trim().toLowerCase()));
 };
 
 // ── Brand matching ──────────────────────────────────────────────────────────
