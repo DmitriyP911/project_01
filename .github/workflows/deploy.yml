@@ -39,6 +39,8 @@ jobs:
       - name: Build
         working-directory: frontend
         run: npm run build
+        env:
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
 
       # GitHub Pages не поддерживает SPA-роутинг — копируем index.html в 404.html
       - name: Fix SPA routing
